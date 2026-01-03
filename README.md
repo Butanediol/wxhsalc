@@ -15,7 +15,7 @@
 1. You don't know what Clash/Mihomo is.
 2. You don't know how to use Clash/Mihomo **core**.
 3. You want a fancy GUI client.
-4. You want minimal performance overhead, I am a shit coder, and this is a .NET WPF app after all.
+4. You want minimal performance overhead, I am a shit coder.
 
 ## How to use
 
@@ -53,7 +53,3 @@ dotnet publish --configuration Release
 ```
 
 The self-contained application will be located in the `bin/Release/net8.0-windows/publish/` directory.
-
-### TODO
-
-- [ ] Persistent config selection
