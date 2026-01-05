@@ -23,6 +23,7 @@
 
   <ItemGroup>
     <EmbeddedResource Include="icon.ico" />
+    <EmbeddedResource Include="icon_tun.ico" />
   </ItemGroup>
 
   <ItemGroup>

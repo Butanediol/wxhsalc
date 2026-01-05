@@ -1,5 +1,7 @@
 using System;
 using System.Diagnostics;
+using System.Drawing;
+using System.Drawing.Imaging;
 using System.IO;
 using System.Reflection;
 using System.Runtime.InteropServices;
@@ -26,6 +28,8 @@ namespace ClashXW
         private ClashConfig? _cachedConfigs;
         private ProxiesResponse? _cachedProxies;
         private DashboardForm? _dashboardForm;
+        private bool _isSystemProxyEnabled;
+        private bool _isTunEnabled;
 
         public TrayApplicationContext()
         {
@@ -54,24 +58,74 @@ namespace ClashXW
             InitializeApiService();
         }
 
-        private System.Drawing.Icon LoadIcon()
+        private Icon LoadIcon()
         {
+            // Select icon based on TUN state
+            var resourceName = _isTunEnabled ? "ClashXW.icon_tun.ico" : "ClashXW.icon.ico";
+
             var assembly = Assembly.GetExecutingAssembly();
-            var resourceName = "ClashXW.icon.ico";
             using var stream = assembly.GetManifestResourceStream(resourceName);
+            Icon baseIcon;
+
             if (stream != null)
             {
-                return new System.Drawing.Icon(stream);
+                baseIcon = new Icon(stream);
             }
-
-            // Fallback to file
-            var iconPath = Path.Combine(AppContext.BaseDirectory, "icon.ico");
-            if (File.Exists(iconPath))
+            else
             {
-                return new System.Drawing.Icon(iconPath);
+                // Fallback to default icon
+                var defaultStream = assembly.GetManifestResourceStream("ClashXW.icon.ico");
+                baseIcon = defaultStream != null ? new Icon(defaultStream) : SystemIcons.Application;
             }
 
-            return SystemIcons.Application;
+            // Apply lightening filter when system proxy is off
+            if (!_isSystemProxyEnabled)
+            {
+                return ApplyLighteningFilter(baseIcon);
+            }
+
+            return baseIcon;
+        }
+
+        private Icon ApplyLighteningFilter(Icon icon)
+        {
+            using var originalBitmap = icon.ToBitmap();
+            var lightenedBitmap = new Bitmap(originalBitmap.Width, originalBitmap.Height, PixelFormat.Format32bppArgb);
+
+            // Color matrix to lighten the image (increase brightness and reduce saturation slightly)
+            var colorMatrix = new ColorMatrix(new float[][]
+            {
+                new float[] { 1.0f, 0, 0, 0, 0 },
+                new float[] { 0, 1.0f, 0, 0, 0 },
+                new float[] { 0, 0, 1.0f, 0, 0 },
+                new float[] { 0, 0, 0, 0.5f, 0 },  // Reduce alpha to 50%
+                new float[] { 0.3f, 0.3f, 0.3f, 0, 1 }  // Add brightness
+            });
+
+            using var attributes = new ImageAttributes();
+            attributes.SetColorMatrix(colorMatrix, ColorMatrixFlag.Default, ColorAdjustType.Bitmap);
+
+            using var g = Graphics.FromImage(lightenedBitmap);
+            g.DrawImage(originalBitmap,
+                new Rectangle(0, 0, lightenedBitmap.Width, lightenedBitmap.Height),
+                0, 0, originalBitmap.Width, originalBitmap.Height,
+                GraphicsUnit.Pixel, attributes);
+
+            var result = Icon.FromHandle(lightenedBitmap.GetHicon());
+            icon.Dispose();
+            return result;
+        }
+
+        private void UpdateTrayIcon()
+        {
+            var oldIcon = _notifyIcon.Icon;
+            _notifyIcon.Icon = LoadIcon();
+
+            // Dispose the old icon if it's not a system icon
+            if (oldIcon != null && oldIcon != SystemIcons.Application)
+            {
+                oldIcon.Dispose();
+            }
         }
 
         private void StartClashCore()
@@ -128,6 +182,30 @@ namespace ClashXW
 
                 _cachedConfigs = await configsTask;
                 _cachedProxies = await proxiesTask;
+
+                // Sync TUN and system proxy states
+                var tunChanged = false;
+                var proxyChanged = false;
+
+                var newTunState = _cachedConfigs?.Tun?.Enable ?? false;
+                if (_isTunEnabled != newTunState)
+                {
+                    _isTunEnabled = newTunState;
+                    tunChanged = true;
+                }
+
+                var proxyAddress = _cachedConfigs != null ? GetProxyAddress(_cachedConfigs) : null;
+                var newProxyState = proxyAddress != null && SystemProxyManager.IsProxyEnabled(proxyAddress);
+                if (_isSystemProxyEnabled != newProxyState)
+                {
+                    _isSystemProxyEnabled = newProxyState;
+                    proxyChanged = true;
+                }
+
+                if (tunChanged || proxyChanged)
+                {
+                    UpdateTrayIcon();
+                }
             }
             catch (Exception ex)
             {
@@ -231,6 +309,9 @@ namespace ClashXW
                 {
                     SystemProxyManager.DisableProxy();
                 }
+
+                _isSystemProxyEnabled = enable;
+                UpdateTrayIcon();
             }
             catch (Exception ex)
             {
@@ -245,6 +326,21 @@ namespace ClashXW
             try
             {
                 await _apiService.UpdateTunModeAsync(enable);
+
+                // Verify actual state after toggle
+                var configs = await _apiService.GetConfigsAsync();
+                var actualTunState = configs?.Tun?.Enable ?? false;
+
+                if (actualTunState != enable)
+                {
+                    ShowBalloonTip("Error", "Failed to set TUN mode. Check log.", ToolTipIcon.Error);
+                }
+
+                if (_isTunEnabled != actualTunState)
+                {
+                    _isTunEnabled = actualTunState;
+                    UpdateTrayIcon();
+                }
             }
             catch (Exception ex)
             {
