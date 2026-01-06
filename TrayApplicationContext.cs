@@ -61,7 +61,7 @@ namespace ClashXW
         private Icon LoadIcon()
         {
             // Select icon based on TUN state
-            var resourceName = _isTunEnabled ? "ClashXW.icon_tun.ico" : "ClashXW.icon.ico";
+            var resourceName = _isTunEnabled ? "ClashXW.Resources.icon_tun.ico" : "ClashXW.Resources.icon.ico";
 
             var assembly = Assembly.GetExecutingAssembly();
             using var stream = assembly.GetManifestResourceStream(resourceName);
@@ -74,7 +74,7 @@ namespace ClashXW
             else
             {
                 // Fallback to default icon
-                var defaultStream = assembly.GetManifestResourceStream("ClashXW.icon.ico");
+                var defaultStream = assembly.GetManifestResourceStream("ClashXW.Resources.icon.ico");
                 baseIcon = defaultStream != null ? new Icon(defaultStream) : SystemIcons.Application;
             }
 
