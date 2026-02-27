@@ -311,13 +311,35 @@ namespace ClashXW
 
             try
             {
-                await _apiService.TestGroupLatencyAsync(groupName);
+                var group = _cachedProxies?.Proxies?.GetValueOrDefault(groupName);
+                if (group == null) return;
+
+                if (IsAutoGroup(group))
+                {
+                    await _apiService.TestGroupLatencyAsync(groupName);
+                }
+                else
+                {
+                    var tasks = new System.Collections.Generic.List<Task>();
+                    foreach (var nodeName in group.All ?? (IReadOnlyList<string>)Array.Empty<string>())
+                    {
+                        tasks.Add(_apiService.TestProxyLatencyAsync(nodeName));
+                    }
+                    await Task.WhenAll(tasks);
+                }
+
                 ShowBalloonTip("Success", $"Latency test completed for {groupName}", ToolTipIcon.Info);
             }
             catch (Exception ex)
             {
                 ShowBalloonTip("Error", $"Failed to test latency for {groupName}: {ex.Message}", ToolTipIcon.Error);
             }
+        }
+
+        private static bool IsAutoGroup(ProxyNode proxy)
+        {
+            return proxy.Type.Equals("Fallback", StringComparison.OrdinalIgnoreCase)
+                || proxy.Type.Equals("URLTest", StringComparison.OrdinalIgnoreCase);
         }
 
         private async void OnSystemProxyToggle(bool enable)
@@ -419,11 +441,21 @@ namespace ClashXW
 
                 foreach (var proxy in _cachedProxies.Proxies.Values)
                 {
-                    if (proxy.Type.Equals("Selector", StringComparison.OrdinalIgnoreCase))
+                    if (proxy.All is { Count: > 0 })
                     {
-                        latencyTasks.Add(_apiService.TestGroupLatencyAsync(proxy.Name));
+                        if (IsAutoGroup(proxy))
+                        {
+                            latencyTasks.Add(_apiService.TestGroupLatencyAsync(proxy.Name));
+                        }
+                        else
+                        {
+                            foreach (var nodeName in proxy.All)
+                            {
+                                latencyTasks.Add(_apiService.TestProxyLatencyAsync(nodeName));
+                            }
+                        }
                     }
-                    else if (proxy.All == null || proxy.All.Count == 0)
+                    else
                     {
                         latencyTasks.Add(_apiService.TestProxyLatencyAsync(proxy.Name));
                     }

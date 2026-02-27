@@ -99,7 +99,7 @@ namespace ClashXW.Services
                 : proxies.Proxies.Values.ToList();
 
             var selectorGroups = orderedGroups
-                .Where(p => p.Type.Equals("Selector", StringComparison.OrdinalIgnoreCase))
+                .Where(p => p.All is { Count: > 0 })
                 .ToList();
 
             foreach (var group in selectorGroups)
