@@ -10,6 +10,8 @@ using System.Windows.Forms;
 using ClashXW.Models;
 using ClashXW.Native;
 using ClashXW.Services;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 
 namespace ClashXW
 {
@@ -398,6 +400,114 @@ namespace ClashXW
             _dashboardForm = new DashboardForm(apiDetails.DashboardUrl);
             _dashboardForm.Show();
 
+            // Newly added
+            // Attempt to restore previous placement (best-effort) from shared state.json
+            try
+            {
+                // Read from state for window size and placement
+                var statePath = Path.Combine(ConfigManager.AppDataDir, "state.json");
+                if (File.Exists(statePath))
+                {
+                    JsonNode? root = null;
+                    try
+                    {
+                        root = JsonNode.Parse(File.ReadAllText(statePath));
+                    }
+                    catch
+                    {
+                        root = null;
+                    }
+
+                    if (root is JsonObject jobj && jobj.TryGetPropertyValue("dashboardPlacement", out var placementNode) && placementNode is JsonObject pd)
+                    {
+                        var wp = new NativeMethods.WINDOWPLACEMENT
+                        {
+                            length = Marshal.SizeOf(typeof(NativeMethods.WINDOWPLACEMENT))
+                        };
+
+                        int tmp;
+                        if (pd.TryGetPropertyValue("flags", out var fnode) && int.TryParse(fnode?.ToString() ?? string.Empty, out tmp)) wp.flags = tmp;
+                        if (pd.TryGetPropertyValue("showCmd", out var scnode) && int.TryParse(scnode?.ToString() ?? string.Empty, out tmp)) wp.showCmd = tmp;
+
+                        wp.rcNormalPosition = new NativeMethods.RECT
+                        {
+                            Left = pd.TryGetPropertyValue("NormalLeft", out var nl) && int.TryParse(nl?.ToString() ?? string.Empty, out tmp) ? tmp : 0,
+                            Top = pd.TryGetPropertyValue("NormalTop", out var nt) && int.TryParse(nt?.ToString() ?? string.Empty, out tmp) ? tmp : 0,
+                            Right = pd.TryGetPropertyValue("NormalRight", out var nr) && int.TryParse(nr?.ToString() ?? string.Empty, out tmp) ? tmp : 0,
+                            Bottom = pd.TryGetPropertyValue("NormalBottom", out var nb) && int.TryParse(nb?.ToString() ?? string.Empty, out tmp) ? tmp : 0
+                        };
+
+                        wp.ptMinPosition = new NativeMethods.POINT
+                        {
+                            X = pd.TryGetPropertyValue("MinX", out var mix) && int.TryParse(mix?.ToString() ?? string.Empty, out tmp) ? tmp : 0,
+                            Y = pd.TryGetPropertyValue("MinY", out var miy) && int.TryParse(miy?.ToString() ?? string.Empty, out tmp) ? tmp : 0
+                        };
+
+                        wp.ptMaxPosition = new NativeMethods.POINT
+                        {
+                            X = pd.TryGetPropertyValue("MaxX", out var maxx) && int.TryParse(maxx?.ToString() ?? string.Empty, out tmp) ? tmp : 0,
+                            Y = pd.TryGetPropertyValue("MaxY", out var maxy) && int.TryParse(maxy?.ToString() ?? string.Empty, out tmp) ? tmp : 0
+                        };
+
+                        // Validate and clamp to current monitor work areas to avoid off-screen placement
+                        try
+                        {
+                            var left = wp.rcNormalPosition.Left;
+                            var top = wp.rcNormalPosition.Top;
+                            var right = wp.rcNormalPosition.Right;
+                            var bottom = wp.rcNormalPosition.Bottom;
+                            var width = Math.Max(1, right - left);
+                            var height = Math.Max(1, bottom - top);
+
+                            bool intersectsAny = false;
+                            foreach (var scr in Screen.AllScreens)
+                            {
+                                var wa = scr.WorkingArea;
+                                var rect = new Rectangle(left, top, width, height);
+                                if (wa.IntersectsWith(rect))
+                                {
+                                    intersectsAny = true;
+                                    break;
+                                }
+                            }
+
+                            if (!intersectsAny)
+                            {
+                                // Move to primary screen and center it, resize if larger than work area
+                                // This value might be null.
+                                // Possible in some multi-monitor setup.
+                                // Check for null.
+                                var primary = Screen.PrimaryScreen?.WorkingArea ?? SystemInformation.WorkingArea;
+                                if (width > primary.Width) width = primary.Width;
+                                if (height > primary.Height) height = primary.Height;
+
+                                left = primary.Left + (primary.Width - width) / 2;
+                                top = primary.Top + (primary.Height - height) / 2;
+                                right = left + width;
+                                bottom = top + height;
+                            }
+
+                            wp.rcNormalPosition.Left = left;
+                            wp.rcNormalPosition.Top = top;
+                            wp.rcNormalPosition.Right = right;
+                            wp.rcNormalPosition.Bottom = bottom;
+                        }
+                        catch
+                        {
+                            // ignore and apply raw values
+                        }
+
+                        // Ensure handle created, then apply placement
+                        var h = _dashboardForm.Handle;
+                        NativeMethods.SetWindowPlacement(h, ref wp);
+                    }
+                }
+            }
+            catch
+            {
+                // Best-effort only
+            }
+
             // OLD IMPLEMENTATION (preserved):
             // try
             // {
@@ -480,7 +590,12 @@ namespace ClashXW
 
             try
             {
-                Process.Start(new ProcessStartInfo("notepad.exe", _currentConfigPath) { UseShellExecute = true });
+                // open the config file with default program that is associated with extension "yml" and "yaml"
+                Process.Start(new ProcessStartInfo(_currentConfigPath)
+                {
+                    UseShellExecute = true,
+                    Verb = "open",
+                });
             }
             catch (Exception ex)
             {
