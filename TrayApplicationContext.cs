@@ -10,6 +10,7 @@ using System.Windows.Forms;
 using ClashXW.Models;
 using ClashXW.Native;
 using ClashXW.Services;
+using System.Text.Json;
 
 namespace ClashXW
 {
@@ -397,6 +398,97 @@ namespace ClashXW
 
             _dashboardForm = new DashboardForm(apiDetails.DashboardUrl);
             _dashboardForm.Show();
+
+            // Attempt to restore previous placement (best-effort)
+            try
+            {
+                var placementPath = Path.Combine(ConfigManager.AppDataDir, "dashboard_placement.json");
+                if (File.Exists(placementPath))
+                {
+                    var json = File.ReadAllText(placementPath);
+                    using var doc = JsonDocument.Parse(json);
+                    var root = doc.RootElement;
+
+                    var wp = new NativeMethods.WINDOWPLACEMENT();
+                    wp.length = Marshal.SizeOf(typeof(NativeMethods.WINDOWPLACEMENT));
+
+                    if (root.TryGetProperty("flags", out var flagsEl) && flagsEl.TryGetInt32(out var flags)) wp.flags = flags;
+                    if (root.TryGetProperty("showCmd", out var showCmdEl) && showCmdEl.TryGetInt32(out var showCmd)) wp.showCmd = showCmd;
+
+                    wp.rcNormalPosition = new NativeMethods.RECT
+                    {
+                        Left = root.TryGetProperty("NormalLeft", out var nl) && nl.TryGetInt32(out var nlv) ? nlv : 0,
+                        Top = root.TryGetProperty("NormalTop", out var nt) && nt.TryGetInt32(out var ntv) ? ntv : 0,
+                        Right = root.TryGetProperty("NormalRight", out var nr) && nr.TryGetInt32(out var nrv) ? nrv : 0,
+                        Bottom = root.TryGetProperty("NormalBottom", out var nb) && nb.TryGetInt32(out var nbv) ? nbv : 0
+                    };
+
+                    wp.ptMinPosition = new NativeMethods.POINT
+                    {
+                        X = root.TryGetProperty("MinX", out var mix) && mix.TryGetInt32(out var mixv) ? mixv : 0,
+                        Y = root.TryGetProperty("MinY", out var miy) && miy.TryGetInt32(out var miyv) ? miyv : 0
+                    };
+
+                    wp.ptMaxPosition = new NativeMethods.POINT
+                    {
+                        X = root.TryGetProperty("MaxX", out var maxx) && maxx.TryGetInt32(out var maxxv) ? maxxv : 0,
+                        Y = root.TryGetProperty("MaxY", out var maxy) && maxy.TryGetInt32(out var maxyv) ? maxyv : 0
+                    };
+
+                    // Validate and clamp to current monitor work areas to avoid off-screen placement
+                    try
+                    {
+                        var left = wp.rcNormalPosition.Left;
+                        var top = wp.rcNormalPosition.Top;
+                        var right = wp.rcNormalPosition.Right;
+                        var bottom = wp.rcNormalPosition.Bottom;
+                        var width = Math.Max(1, right - left);
+                        var height = Math.Max(1, bottom - top);
+
+                        bool intersectsAny = false;
+                        foreach (var scr in Screen.AllScreens)
+                        {
+                            var wa = scr.WorkingArea;
+                            var rect = new Rectangle(left, top, width, height);
+                            if (wa.IntersectsWith(rect))
+                            {
+                                intersectsAny = true;
+                                break;
+                            }
+                        }
+
+                        if (!intersectsAny)
+                        {
+                            // Move to primary screen and center it, resize if larger than work area
+                            var primary = Screen.PrimaryScreen.WorkingArea;
+                            if (width > primary.Width) width = primary.Width;
+                            if (height > primary.Height) height = primary.Height;
+
+                            left = primary.Left + (primary.Width - width) / 2;
+                            top = primary.Top + (primary.Height - height) / 2;
+                            right = left + width;
+                            bottom = top + height;
+                        }
+
+                        wp.rcNormalPosition.Left = left;
+                        wp.rcNormalPosition.Top = top;
+                        wp.rcNormalPosition.Right = right;
+                        wp.rcNormalPosition.Bottom = bottom;
+                    }
+                    catch
+                    {
+                        // ignore and apply raw values
+                    }
+
+                    // Ensure handle created, then apply placement
+                    var h = _dashboardForm.Handle;
+                    NativeMethods.SetWindowPlacement(h, ref wp);
+                }
+            }
+            catch
+            {
+                // Best-effort only
+            }
 
             // OLD IMPLEMENTATION (preserved):
             // try

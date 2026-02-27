@@ -152,7 +152,7 @@ namespace ClashXW.Native
         {
             if (nCode == NativeMethods.MSGF_MENU && _activeMenu != null)
             {
-                var msg = Marshal.PtrToStructure<MSG>(lParam);
+                var msg = Marshal.PtrToStructure<NativeMethods.MSG>(lParam);
 
                 if (msg.message == NativeMethods.WM_KEYDOWN || msg.message == NativeMethods.WM_SYSKEYDOWN)
                 {
