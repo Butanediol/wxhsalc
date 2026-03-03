@@ -44,6 +44,7 @@ namespace ClashXW
 
             // Create a message window for menu handling
             _messageWindow = new MessageWindow();
+            _messageWindow.ThemeChanged += UpdateTrayIcon;
 
             // Create notify icon
             _notifyIcon = new NotifyIcon
@@ -62,6 +63,7 @@ namespace ClashXW
         {
             // Select icon based on TUN state
             var resourceName = _isTunEnabled ? "ClashXW.Resources.icon_tun.ico" : "ClashXW.Resources.icon.ico";
+            Logger.Info($"LoadIcon: TUN={_isTunEnabled}, SystemProxy={_isSystemProxyEnabled}, DarkMode={DarkModeHelper.IsDarkModeEnabled}, Resource={resourceName}");
 
             var assembly = Assembly.GetExecutingAssembly();
             using var stream = assembly.GetManifestResourceStream(resourceName);
@@ -585,18 +587,39 @@ namespace ClashXW
     }
 
     /// <summary>
-    /// A message-only window used for Win32 menu operations.
+    /// A hidden window used for Win32 menu operations and receiving system broadcast messages.
+    /// Note: Message-only windows (HWND_MESSAGE) do NOT receive broadcast messages like
+    /// WM_SETTINGCHANGE, so we use a regular hidden window instead.
     /// </summary>
     internal class MessageWindow : NativeWindow
     {
-        private const int HWND_MESSAGE = -3;
+        private const int WM_SETTINGCHANGE = 0x001A;
+
+        public event Action? ThemeChanged;
 
         public MessageWindow()
         {
             CreateHandle(new CreateParams
             {
-                Parent = new IntPtr(HWND_MESSAGE)
+                Caption = "ClashXW_MessageWindow",
+                Style = 0, // Not visible
             });
+            Logger.Info($"MessageWindow created: Handle={Handle}");
+        }
+
+        protected override void WndProc(ref Message m)
+        {
+            if (m.Msg == WM_SETTINGCHANGE)
+            {
+                var section = Marshal.PtrToStringUni(m.LParam);
+                Logger.Info($"MessageWindow: WM_SETTINGCHANGE received, section={section ?? "(null)"}");
+                if (section == "ImmersiveColorSet")
+                {
+                    DarkModeHelper.RefreshDarkModeState();
+                    ThemeChanged?.Invoke();
+                }
+            }
+            base.WndProc(ref m);
         }
     }
 }
