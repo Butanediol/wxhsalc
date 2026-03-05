@@ -1,6 +1,20 @@
 # wxhsalc
 
-<img width="435" height="255" alt="image" src="https://github.com/user-attachments/assets/fc35cdfb-dbcc-4797-b95b-171932a7ed7b" />
+<img width="435" height="255" alt="image" src="https://github.com/user-attachments/assets/fc35cdfb-dbcc-4797-b95b-171932a7ed7b" />  
+  
+This is a fork mainly with human-machine interface improvements & personal preferences.
+
+## Changes
+
+- Use Windows default program to edit config.
+- Remembers window size and placements.
+  - Multi-monitor set-up should work but not tested.
+- Use multi-column context menu ( in another branch ).
+  - Dark mode for this kind of context menu is not working.
+
+## Plan
+
+- [ ] Switch to external strings for future translations.
 
 ## Why
 
@@ -34,7 +48,7 @@
 
 ### Prerequisites
 
--   [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
+- [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
 
 ### Building
 
