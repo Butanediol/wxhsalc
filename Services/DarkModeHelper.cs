@@ -234,7 +234,7 @@ namespace ClashXW.Services
                 using var key = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize");
                 if (key != null)
                 {
-                    var value = key.GetValue("AppsUseLightTheme");
+                    var value = key.GetValue("SystemUsesLightTheme");
                     if (value is int intValue)
                         return intValue == 0; // 0 = dark mode, 1 = light mode
                 }

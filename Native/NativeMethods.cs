@@ -3,28 +3,64 @@ using System.Runtime.InteropServices;
 
 namespace ClashXW.Native
 {
-    [StructLayout(LayoutKind.Sequential)]
-    internal struct POINT
-    {
-        public int X;
-        public int Y;
-    }
-
-    [StructLayout(LayoutKind.Sequential)]
-    internal struct MSG
-    {
-        public IntPtr hwnd;
-        public uint message;
-        public UIntPtr wParam;
-        public IntPtr lParam;
-        public uint time;
-        public POINT pt;
-    }
+    
 
     internal delegate IntPtr HookProc(int nCode, IntPtr wParam, IntPtr lParam);
 
     internal static class NativeMethods
     {
+        [StructLayout(LayoutKind.Sequential)]
+        internal struct POINT
+        {
+            public int X;
+            public int Y;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        internal struct MSG
+        {
+            public IntPtr hwnd;
+            public uint message;
+            public UIntPtr wParam;
+            public IntPtr lParam;
+            public uint time;
+            public POINT pt;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        internal struct RECT
+        {
+            public int Left;
+            public int Top;
+            public int Right;
+            public int Bottom;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        internal struct WINDOWPLACEMENT
+        {
+            public int length;
+            public int flags;
+            public int showCmd;
+            public POINT ptMinPosition;
+            public POINT ptMaxPosition;
+            public RECT rcNormalPosition;
+        }
+
+        // ShowWindow commands
+        internal const int SW_HIDE = 0;
+        internal const int SW_SHOWNORMAL = 1;
+        internal const int SW_SHOWMINIMIZED = 2;
+        internal const int SW_SHOWMAXIMIZED = 3;
+
+        [DllImport("user32.dll", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        internal static extern bool GetWindowPlacement(IntPtr hWnd, ref WINDOWPLACEMENT lpwndpl);
+
+        [DllImport("user32.dll", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        internal static extern bool SetWindowPlacement(IntPtr hWnd, [In] ref WINDOWPLACEMENT lpwndpl);
+
         // Menu creation and destruction
         [DllImport("user32.dll", SetLastError = true)]
         internal static extern IntPtr CreatePopupMenu();
