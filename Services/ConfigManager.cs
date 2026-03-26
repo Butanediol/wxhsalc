@@ -16,6 +16,12 @@ namespace ClashXW.Services
         private static readonly string StateFilePath = Path.Combine(AppDataDir, "state.json");
         private static readonly string DefaultConfigName = "config.yaml";
         private static readonly string DefaultConfigResourceName = "ClashXW.Resources.default-config.yaml";
+        private static readonly JsonSerializerOptions StateSerializerOptions = new()
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            PropertyNameCaseInsensitive = true,
+            WriteIndented = true
+        };
 
         public static void EnsureDefaultConfigExists()
         {
@@ -44,25 +50,32 @@ namespace ClashXW.Services
 
         public static string GetCurrentConfigPath()
         {
-            if (File.Exists(StateFilePath))
+            var state = LoadState();
+            if (!string.IsNullOrWhiteSpace(state.CurrentConfig) && File.Exists(state.CurrentConfig))
             {
-                try
-                {
-                    var state = JsonSerializer.Deserialize<Dictionary<string, string>>(File.ReadAllText(StateFilePath));
-                    if (state != null && state.TryGetValue("currentConfig", out var path) && File.Exists(path))
-                    {
-                        return path;
-                    }
-                }
-                catch { /* Ignore deserialization errors */ }
+                return state.CurrentConfig;
             }
+
             return Path.Combine(ConfigDir, DefaultConfigName);
         }
 
         public static void SetCurrentConfigPath(string configPath)
         {
-            var state = new Dictionary<string, string> { ["currentConfig"] = configPath };
-            File.WriteAllText(StateFilePath, JsonSerializer.Serialize(state));
+            var state = LoadState();
+            state.CurrentConfig = configPath;
+            SaveState(state);
+        }
+
+        internal static WindowPlacementState? GetDashboardPlacement()
+        {
+            return LoadState().DashboardPlacement;
+        }
+
+        internal static void SetDashboardPlacement(WindowPlacementState placement)
+        {
+            var state = LoadState();
+            state.DashboardPlacement = placement;
+            SaveState(state);
         }
 
         public static List<string> GetAvailableConfigs()
@@ -104,6 +117,31 @@ namespace ClashXW.Services
             {
                 return null; // Failed to read or parse
             }
+        }
+
+        private static AppState LoadState()
+        {
+            if (!File.Exists(StateFilePath))
+            {
+                return new AppState();
+            }
+
+            try
+            {
+                var state = JsonSerializer.Deserialize<AppState>(File.ReadAllText(StateFilePath), StateSerializerOptions);
+                return state ?? new AppState();
+            }
+            catch (Exception ex)
+            {
+                Logger.Warn($"Failed to read app state from {StateFilePath}: {ex.Message}");
+                return new AppState();
+            }
+        }
+
+        private static void SaveState(AppState state)
+        {
+            Directory.CreateDirectory(AppDataDir);
+            File.WriteAllText(StateFilePath, JsonSerializer.Serialize(state, StateSerializerOptions));
         }
 
     }
