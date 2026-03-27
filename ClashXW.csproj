@@ -16,9 +16,22 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.3650.58" />
+    <!--
+      Work around a known WebView2 packaging issue where the package targets pull in
+      Microsoft.Web.WebView2.Wpf.dll for WinForms-only projects, which causes the
+      WindowsBase MSB3277 warning. Tracked here:
+      https://github.com/MicrosoftEdge/WebView2Feedback/issues/4924
+      https://github.com/MicrosoftEdge/WebView2Feedback/issues/4959
+    -->
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.3650.58" GeneratePathProperty="true" ExcludeAssets="build;buildTransitive" />
     <PackageReference Include="System.Net.Http.Json" Version="9.0.9" />
     <PackageReference Include="YamlDotNet" Version="16.3.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Re-add only the WebView2 assemblies this WinForms app actually uses. -->
+    <Reference Include="$(PkgMicrosoft_Web_WebView2)\lib_manual\netcoreapp3.0\Microsoft.Web.WebView2.Core.dll" />
+    <Reference Include="$(PkgMicrosoft_Web_WebView2)\lib_manual\netcoreapp3.0\Microsoft.Web.WebView2.WinForms.dll" />
   </ItemGroup>
 
   <ItemGroup>
