@@ -3,7 +3,7 @@ name: .NET Build
 
 on:
   push:
-    branches: [ "master", "main" ]
+    branches: [ "**" ]
   release:
     types: [created]
   workflow_dispatch:
