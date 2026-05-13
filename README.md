@@ -11,10 +11,14 @@ This is a fork mainly with human-machine interface improvements & personal prefe
   - Multi-monitor set-up should work but not tested.
 - Use multi-column context menu ( in another branch ).
   - Dark mode for this kind of context menu is not working.
+- Tray icon ignores system proxy status **if TUN mode is enabled**.
+- Make embedded dashboard automatically goes to `127.0.0.1` if config file binds to `0.0.0.0`.
 
 ## Plan
 
 - [ ] Switch to external strings for future translations.
+- [x] Make Tray icon ignore system proxy status if TUN mode is enabled.
+- [x] Make dashboard auto adapt to 0.0.0.0 if config file defines so.
 
 ## Why
 

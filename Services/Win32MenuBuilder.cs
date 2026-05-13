@@ -122,14 +122,43 @@ namespace ClashXW.Services
             groupMenu.AddItem("Test Latency", () => onTestGroupLatency(group.Name));
             groupMenu.AddSeparator();
 
-            // Proxy nodes
-            foreach (var nodeName in group.All ?? new List<string>())
-            {
-                var isSelected = nodeName.Equals(group.Now, StringComparison.OrdinalIgnoreCase);
-                var nodeLatency = GetNodeLatency(nodeName, allProxies);
-                var nodeText = nodeLatency.HasValue ? $"{nodeName}\t{nodeLatency}ms" : nodeName;
+            // Proxy nodes with multi-column layout if there are many items
+            var nodeNames = group.All ?? new List<string>();
+            const int itemsPerColumn = 40; // target maximum rows per column
 
-                groupMenu.AddItem(nodeText, () => onProxyNodeSelected(group.Name, nodeName), isSelected);
+            if (nodeNames.Count > itemsPerColumn)
+            {
+                // dynamic number of columns: break every `itemsPerColumn` entries
+                for (int i = 0; i < nodeNames.Count; i++)
+                {
+                    var nodeName = nodeNames[i];
+                    var isSelected = nodeName.Equals(group.Now, StringComparison.OrdinalIgnoreCase);
+                    var nodeLatency = GetNodeLatency(nodeName, allProxies);
+                    var nodeText = nodeLatency.HasValue ? $"{nodeName}\t{nodeLatency}ms" : nodeName;
+
+                    if (i > 0 && i % itemsPerColumn == 0)
+                    {
+                        // start a new column
+                        groupMenu.AddItemWithColumnBreak(nodeText,
+                            () => onProxyNodeSelected(group.Name, nodeName), isSelected);
+                    }
+                    else
+                    {
+                        groupMenu.AddItem(nodeText, () => onProxyNodeSelected(group.Name, nodeName), isSelected);
+                    }
+                }
+            }
+            else
+            {
+                // Single column for fewer items
+                foreach (var nodeName in nodeNames)
+                {
+                    var isSelected = nodeName.Equals(group.Now, StringComparison.OrdinalIgnoreCase);
+                    var nodeLatency = GetNodeLatency(nodeName, allProxies);
+                    var nodeText = nodeLatency.HasValue ? $"{nodeName}\t{nodeLatency}ms" : nodeName;
+
+                    groupMenu.AddItem(nodeText, () => onProxyNodeSelected(group.Name, nodeName), isSelected);
+                }
             }
         }
 

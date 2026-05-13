@@ -108,6 +108,9 @@ namespace ClashXW.Services
                     controller = $"127.0.0.1{controller}";
                 }
 
+                // Replace 0.0.0.0 with 127.0.0.1 for outbound connections
+                controller = controller.Replace("0.0.0.0", "127.0.0.1");
+
                 var baseUrl = $"http://{controller}";
                 var dashboardUrl = $"{baseUrl}/ui";
 

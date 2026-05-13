@@ -86,8 +86,8 @@ namespace ClashXW
                 baseIcon = InvertIconColors(baseIcon);
             }
 
-            // Apply lightening filter when system proxy is off
-            if (!_isSystemProxyEnabled)
+            // Apply lightening filter when system proxy is off (skip when TUN mode is enabled)
+            if (!_isSystemProxyEnabled && !_isTunEnabled)
             {
                 return ApplyLighteningFilter(baseIcon);
             }

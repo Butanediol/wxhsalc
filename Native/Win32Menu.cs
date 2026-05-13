@@ -59,6 +59,20 @@ namespace ClashXW.Native
             return id;
         }
 
+        public uint AddItemWithColumnBreak(string text, Action action, bool isChecked = false, bool isEnabled = true)
+        {
+            var id = _nextId++;
+            _actions[id] = action;
+            SyncNextIdToParent();
+
+            uint flags = NativeMethods.MF_STRING | NativeMethods.MF_MENUBARBREAK;
+            if (isChecked) flags |= NativeMethods.MF_CHECKED;
+            if (!isEnabled) flags |= NativeMethods.MF_GRAYED;
+
+            NativeMethods.AppendMenu(_hMenu, flags, (UIntPtr)id, text);
+            return id;
+        }
+
         public uint AddItemWithShortcut(string text, Action action, Keys key, bool ctrl, bool alt, bool isChecked = false, bool isEnabled = true)
         {
             var id = AddItem(text, action, isChecked, isEnabled);

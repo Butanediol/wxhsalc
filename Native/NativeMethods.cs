@@ -126,6 +126,10 @@ namespace ClashXW.Native
         internal const uint MF_DISABLED = 0x00000002;
         internal const uint MF_BYPOSITION = 0x00000400;
 
+        // Menu break flags for multi-column layout
+        internal const uint MF_MENUBREAK = 0x00000040;      // Column break without separator
+        internal const uint MF_MENUBARBREAK = 0x00000020;   // Column break with separator
+
         // TrackPopupMenuEx flags
         internal const uint TPM_LEFTALIGN = 0x0000;
         internal const uint TPM_RETURNCMD = 0x0100;
@@ -149,5 +153,16 @@ namespace ClashXW.Native
         // Virtual key codes
         internal const int VK_CONTROL = 0x11;
         internal const int VK_MENU = 0x12; // Alt key
+
+        // System color indices (for SetSysColors/GetSysColor)
+        internal const int COLOR_MENU = 4;
+        internal const int COLOR_MENUBAR = 30;
+
+        [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        internal static extern bool SetSysColors(int cElements, int[] lpaElements, int[] lpaRgbValues);
+
+        [DllImport("user32.dll")]
+        internal static extern int GetSysColor(int nIndex);
     }
 }
