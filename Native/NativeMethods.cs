@@ -3,8 +3,6 @@ using System.Runtime.InteropServices;
 
 namespace ClashXW.Native
 {
-    
-
     internal delegate IntPtr HookProc(int nCode, IntPtr wParam, IntPtr lParam);
 
     internal static class NativeMethods
@@ -45,6 +43,47 @@ namespace ClashXW.Native
             public POINT ptMinPosition;
             public POINT ptMaxPosition;
             public RECT rcNormalPosition;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        internal struct IO_COUNTERS
+        {
+            public ulong ReadOperationCount;
+            public ulong WriteOperationCount;
+            public ulong OtherOperationCount;
+            public ulong ReadTransferCount;
+            public ulong WriteTransferCount;
+            public ulong OtherTransferCount;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        internal struct JOBOBJECT_BASIC_LIMIT_INFORMATION
+        {
+            public long PerProcessUserTimeLimit;
+            public long PerJobUserTimeLimit;
+            public uint LimitFlags;
+            public UIntPtr MinimumWorkingSetSize;
+            public UIntPtr MaximumWorkingSetSize;
+            public uint ActiveProcessLimit;
+            public UIntPtr Affinity;
+            public uint PriorityClass;
+            public uint SchedulingClass;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        internal struct JOBOBJECT_EXTENDED_LIMIT_INFORMATION
+        {
+            public JOBOBJECT_BASIC_LIMIT_INFORMATION BasicLimitInformation;
+            public IO_COUNTERS IoInfo;
+            public UIntPtr ProcessMemoryLimit;
+            public UIntPtr JobMemoryLimit;
+            public UIntPtr PeakProcessMemoryUsed;
+            public UIntPtr PeakJobMemoryUsed;
+        }
+
+        internal enum JOBOBJECTINFOCLASS
+        {
+            JobObjectExtendedLimitInformation = 9
         }
 
         // ShowWindow commands
@@ -112,6 +151,25 @@ namespace ClashXW.Native
         [DllImport("kernel32.dll", SetLastError = true)]
         internal static extern uint GetCurrentThreadId();
 
+        [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+        internal static extern IntPtr CreateJobObject(IntPtr lpJobAttributes, string? lpName);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        internal static extern bool SetInformationJobObject(
+            IntPtr hJob,
+            JOBOBJECTINFOCLASS JobObjectInfoClass,
+            IntPtr lpJobObjectInfo,
+            uint cbJobObjectInfoLength);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        internal static extern bool AssignProcessToJobObject(IntPtr hJob, IntPtr hProcess);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        internal static extern bool CloseHandle(IntPtr hObject);
+
         // Keyboard state
         [DllImport("user32.dll")]
         internal static extern short GetKeyState(int nVirtKey);
@@ -149,5 +207,8 @@ namespace ClashXW.Native
         // Virtual key codes
         internal const int VK_CONTROL = 0x11;
         internal const int VK_MENU = 0x12; // Alt key
+
+        // Job object limit flags
+        internal const uint JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE = 0x00002000;
     }
 }
