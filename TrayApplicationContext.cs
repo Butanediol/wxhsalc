@@ -200,12 +200,10 @@ namespace ClashXW
         {
             if (e.Button != MouseButtons.Left && e.Button != MouseButtons.Right) return;
 
-            var clickPoint = Cursor.Position;
-
             // Fetch fresh data before showing menu
             await RefreshCachedDataAsync();
 
-            ShowContextMenu(clickPoint.X, clickPoint.Y);
+            ShowContextMenu();
         }
 
         private async Task RefreshCachedDataAsync()
@@ -252,7 +250,7 @@ namespace ClashXW
             }
         }
 
-        private void ShowContextMenu(int x, int y)
+        private void ShowContextMenu()
         {
             if (_menuBuilder == null) return;
 
@@ -274,7 +272,7 @@ namespace ClashXW
                 onExit: OnExit
             );
 
-            var commandId = menu.Show(_messageWindow.Handle, x, y);
+            var commandId = menu.Show(_messageWindow.Handle);
             if (commandId.HasValue)
             {
                 menu.ExecuteCommand(commandId.Value);

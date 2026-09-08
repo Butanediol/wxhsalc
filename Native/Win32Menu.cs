@@ -97,8 +97,10 @@ namespace ClashXW.Native
             }
         }
 
-        public uint? Show(IntPtr hwnd, int x, int y)
+        public uint? Show(IntPtr hwnd)
         {
+            NativeMethods.GetCursorPos(out var pt);
+
             // Required for menu to close properly when clicking outside
             NativeMethods.SetForegroundWindow(hwnd);
 
@@ -118,7 +120,7 @@ namespace ClashXW.Native
                 var cmd = NativeMethods.TrackPopupMenuEx(
                     _hMenu,
                     NativeMethods.TPM_RETURNCMD | NativeMethods.TPM_NONOTIFY | NativeMethods.TPM_RIGHTBUTTON | NativeMethods.TPM_BOTTOMALIGN,
-                    x, y,
+                    pt.X, pt.Y,
                     hwnd,
                     IntPtr.Zero);
 
